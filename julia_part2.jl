@@ -1,31 +1,37 @@
-##the balls height hb is positioned at the cm
-using DelimitedFiles
+using CSV
+using DataFrames
+using Statistics
 using Plots
 
-# Read the CSV file, skipping the header row
-raw, header = readdlm("data.csv", ',', Any; header=true)
+# 1. Load data
+df = CSV.read("data.csv", DataFrame)
 
-# Extract columns 2 (h_b_cm) and 3 (D1_cm) as Float64
-h_b = Float64.(raw[:, 2])
-D1  = Float64.(raw[:, 3])
+# 2. Extract h_b and convert from cm to meters
+h_b = df.h_b_cm ./ 100.0
 
-# Sort by release height h_b in ascending order
-order = sortperm(h_b)
-h_b = h_b[order]
-D1  = D1[order]
-D2 = D1.^2
-# Plot D(h_b)
+# 3. Extract distance columns (D1_cm through D10), convert to meters, and square
+d_cols = names(df, r"^D\d+")
+D_matrix = df[:, d_cols] ./ 100.0
+D_sq_matrix = D_matrix .^ 2
+
+# 4. Compute row-wise average of D^2 (ignoring missing cells)
+D_sq_avg = [mean(skipmissing(row)) for row in eachrow(D_sq_matrix)]
+
+# 5. Sort data in ascending order of h_b
+idx = sortperm(h_b)
+h_b = h_b[idx]
+D_sq_avg = D_sq_avg[idx]
+
+# 6. Plot ⟨D²⟩ as a function of h_b
 scatter(
     h_b,
-    D2,##d ^ 2
-    xlabel = "Release Height h_b [cm]",
-    ylabel = "Horizontal Distance D [cm]",
-    title = "Week 2 Preliminary Graph: D(h_b)",
-    label = "Measured Data (D1)",
-    markersize = 6,
+    D_sq_avg,
+    label  = "Average D²",
+    xlabel = "h_b [m]",
+    ylabel = "⟨D²⟩ [m²]",
+    title  = "⟨D²⟩ as a function of h_b",
     legend = :topleft,
-    grid = true
+    grid   = true
 )
 
-savefig("preliminary_D_vs_hb.png")
-display(current())
+savefig("D2_vs_hb.png")
